@@ -68,7 +68,7 @@ async function handleRemoveRating(trackUri: string, rating: string) {
     api.showNotification(`Removed from ${playlistName}`);
 }
 
-async function handleSetRating(trackUri: string, oldRating: string | undefined, newRating: string) {
+async function handleSetRating(trackUri: string, oldRating: string | undefined, newRating: string, allowLike: boolean = true) {
     try {
         // Update the rating in the ratings object
         ratings[trackUri] = newRating;
@@ -138,7 +138,7 @@ async function handleSetRating(trackUri: string, oldRating: string | undefined, 
         api.showNotification((oldRating ? "Moved" : "Added") + ` to ${displayName}`);
 
         // Handle liking if above threshold
-        if (settings.likeThreshold !== "disabled") {
+        if (settings.likeThreshold !== "disabled" && allowLike) {
             const threshold = parseFloat(settings.likeThreshold);
             const ratingValue = parseFloat(newRating);
             if (ratingValue >= threshold) {
@@ -167,6 +167,23 @@ function getClickListener(i, ratingOverride, starData, getTrackUri) {
         if (oldRating === newRating) {
             displayRating = 0.0;
             promise = handleRemoveRating(trackUri, newRating);
+
+            // If sync duplicate songs is enabled, remove the rating from all tracks with the same ISRC
+            if (settings.syncDuplicateSongs) {
+                (async () => {
+                    try {
+                        const tracksWithSameISRC = await api.getTracksWithSameISRC(trackUri.substring(14));
+                        for (const track of tracksWithSameISRC) {
+                            const trackUri = track.uri;
+                            if (trackUri in ratings) {
+                                await handleRemoveRating(trackUri, ratings[trackUri]);
+                            }
+                        }
+                    } catch (error) {
+                        console.error(error);
+                    }
+                })();
+            }
         } else {
             displayRating = newRating;
             promise = handleSetRating(trackUri, oldRating, newRating);
@@ -174,6 +191,21 @@ function getClickListener(i, ratingOverride, starData, getTrackUri) {
             // Like the track if it's rated above the like threshold
             if (settings.likeThreshold !== "disabled") {
                 if (newRating >= parseFloat(settings.likeThreshold)) api.addTrackToLikedSongs(trackUri);
+            }
+
+            // If sync duplicate songs is enabled, set the rating for all tracks with the same ISRC
+            if (settings.syncDuplicateSongs) {
+                (async () => {
+                    try {
+                        const tracksWithSameISRC = await api.getTracksWithSameISRC(trackUri.substring(14));
+                        for (const track of tracksWithSameISRC) {
+                            const trackUri = track.uri;
+                            await handleSetRating(trackUri, ratings[trackUri], newRating, false);
+                        }
+                    } catch (error) {
+                        console.error(error);
+                    }
+                })();
             }
         }
 

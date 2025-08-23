@@ -155,6 +155,17 @@ export function Settings({
                     "4.5": "4.5",
                 }}
             />
+            <CheckboxItem
+                settings={settings}
+                name={
+                    <>
+                        Sync duplicate songs with same rating
+                        <br />
+                        (Does not apply to songs that have already been rated)
+                    </>
+                }
+                field="syncDuplicateSongs"
+            />
             <Heading value="Keyboard Shortcuts" />
             <ul>
                 <KeyboardShortcutDescription label="Rate current track 0.5 stars" numberKey="1" />

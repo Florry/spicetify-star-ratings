@@ -8,6 +8,7 @@ export function getSettings() {
         showPlaylistStars: true,
         nowPlayingStarsPosition: "left",
         skipThreshold: "disabled",
+        syncDuplicateSongs: false,
     };
     settings = {};
     try {

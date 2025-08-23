@@ -99,3 +99,19 @@ export async function moveTracksAfter(playlistUri: string, trackUids, afterUid: 
         { after: isV2 ? { uid: afterUid } : afterUid },
     );
 }
+
+export async function getTracksWithSameISRC(uri: string) {
+    // Get ISRC code for the track
+    const track = await Spicetify.CosmosAsync.get(`https://api.spotify.com/v1/tracks/${uri}`);
+    const isrc = track.external_ids.isrc;
+
+    // Search for tracks with the same ISRC code
+    const query = {
+        q : `isrc:${isrc}`,
+        type: "track",
+        limit: 50, // I don't think there will be more than 50 duplicate songs
+    };
+
+    const response = await Spicetify.CosmosAsync.get(`https://api.spotify.com/v1/search`, query);
+    return response.tracks.items;
+}
