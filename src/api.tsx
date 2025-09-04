@@ -10,13 +10,33 @@ export function setLocalStorageData(key, value) {
     Spicetify.LocalStorage.set(key, value);
 }
 
+function getLibraryAPI() {
+    /** Hack fix for LibraryAPI not being available in Platform on some newer versions **/
+    const libraryFromRegistry = Array.from(Spicetify.Platform.Registry._map?.values?.())?.[40] as any;
+    return Spicetify.Platform.LibraryAPI ?? libraryFromRegistry?.instance;
+}
+
+function getRootlistAPI() {
+    /** Hack fix for RootlistAPI not being available in Platform on some newer versions **/
+    const rootListFromRegistry = Array.from(Spicetify.Platform.Registry._map?.values?.())?.[41] as any;
+    return Spicetify.Platform.RootlistAPI ?? rootListFromRegistry?.instance;
+}
+
+function getPlaylistAPI() {
+    /** Hack fix for PlaylistAPI not being available in Platform on some newer versions **/
+    const playlistFromRegistry = Array.from(Spicetify.Platform.Registry._map?.values?.())?.[42] as any;
+    return Spicetify.Platform.PlaylistAPI ?? playlistFromRegistry?.instance;
+}
+
 export async function createPlaylist(name, folderUri) {
     const options =
         navigator.platform.startsWith("Linux") && navigator.userAgent.includes("Spotify/1.1.84.716")
             ? { after: folderUri }
             : { after: { uri: folderUri } };
 
-    return await Spicetify.CosmosAsync.post(`https://api.spotify.com/v1/users/${Spicetify.User.getUsername()}/playlists`, {
+    const username = (Spicetify as any).User?.getUsername?.() ?? Spicetify.Platform.username;
+
+    return await Spicetify.CosmosAsync.post(`https://api.spotify.com/v1/users/${username}/playlists`, {
         name: name,
         ...options,
     });
@@ -31,7 +51,7 @@ export async function makePlaylistPrivate(playlistUri) {
 }
 
 export async function createFolder(name: string) {
-    await Spicetify.Platform.RootlistAPI.createFolder(name, { before: "" });
+    await getRootlistAPI().createFolder(name, { before: "" });
 }
 
 export async function getAlbum(uri: string) {
@@ -44,31 +64,31 @@ export async function getAlbum(uri: string) {
 }
 
 export async function getContents() {
-    return await Spicetify.Platform.RootlistAPI.getContents();
+    return await getRootlistAPI().getContents();
 }
 
 export async function addTrackToLikedSongs(trackUri: string) {
     // check if track is already liked
-    const isLiked = await Spicetify.Platform.LibraryAPI.contains(trackUri);
+    const isLiked = await getLibraryAPI().contains(trackUri);
     if (isLiked[0]) {
         return;
     }
-    
+
     // false refers to whether to silently add to liked songs (no notification)
-    await Spicetify.Platform.LibraryAPI.add({uris: [trackUri], silent: 0})
+    await getLibraryAPI().add({ uris: [trackUri], silent: 0 });
 }
 
 export async function removeTrackFromLikedSongs(trackUri: string) {
     // false refers to whether to silently add to liked songs (no notification)
-    await Spicetify.Platform.LibraryAPI.remove({uris: [trackUri], silent: 0})
+    await getLibraryAPI().remove({ uris: [trackUri], silent: 0 });
 }
 
 export async function addTrackToPlaylist(playlistUri: string, trackUri: string) {
-    await Spicetify.Platform.PlaylistAPI.add(playlistUri, [trackUri], {after: 1, before: 0});
+    await getPlaylistAPI().add(playlistUri, [trackUri], { after: 1, before: 0 });
 }
 
 export async function removeTrackFromPlaylist(playlistUri: string, trackUri: string) {
-    await Spicetify.Platform.PlaylistAPI.remove(playlistUri, [{uri: trackUri, uid: ""}]);
+    await getPlaylistAPI().remove(playlistUri, [{ uri: trackUri, uid: "" }]);
 }
 
 export async function getPlaylistItems(uri: string) {
@@ -84,7 +104,7 @@ export async function isAppLaterThan(specifiedVersion: string) {
 
 export async function moveTracksBefore(playlistUri: string, trackUids, beforeUid: string) {
     const isV2 = await isAppLaterThan("1.2.5.1006.g22820f93");
-    await Spicetify.Platform.PlaylistAPI.move(
+    await getPlaylistAPI().move(
         playlistUri,
         trackUids.map((uid) => ({ uid: uid })),
         { before: isV2 ? { uid: beforeUid } : beforeUid },
@@ -93,7 +113,7 @@ export async function moveTracksBefore(playlistUri: string, trackUids, beforeUid
 
 export async function moveTracksAfter(playlistUri: string, trackUids, afterUid: string) {
     const isV2 = await isAppLaterThan("1.2.5.1006.g22820f93");
-    await Spicetify.Platform.PlaylistAPI.move(
+    await getPlaylistAPI().move(
         playlistUri,
         trackUids.map((uid) => ({ uid: uid })),
         { after: isV2 ? { uid: afterUid } : afterUid },
@@ -107,7 +127,7 @@ export async function getTracksWithSameISRC(uri: string) {
 
     // Search for tracks with the same ISRC code
     const query = {
-        q : `isrc:${isrc}`,
+        q: `isrc:${isrc}`,
         type: "track",
         limit: 50, // I don't think there will be more than 50 duplicate songs
     };
