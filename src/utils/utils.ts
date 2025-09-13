@@ -1,12 +1,15 @@
 export function getTracklistTrackUri(tracklistElement: Element) {
     let values = Object.values(tracklistElement);
     if (!values) return null;
-    const searchFrom = values[0]?.pendingProps?.children[0]?.props?.children;
+
+    const searchFrom = values[0]?.pendingProps?.children?.[0]?.props?.children ?? values[0]?.pendingProps?.children?.props?.value?.item;
+
     return (
+        searchFrom?.uri ||
         searchFrom?.props?.uri ||
         searchFrom?.props?.children?.props?.uri ||
         searchFrom?.props?.children?.props?.children?.props?.uri ||
-        searchFrom[0]?.props?.uri
+        searchFrom?.[0]?.props?.uri
     );
 }
 
